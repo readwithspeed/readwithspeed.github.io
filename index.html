@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pro Speed Reader</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #23272f;
+    --text: #e2e4e8;
+    --text-dim: #6b7280;
+    --accent: #7ee8a2;
+    --accent-dim: rgba(126,232,162,0.15);
+    --red: #f07878;
+    --key-border: #333;
+  }
+
+  :root.light {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #dddcda;
+    --text: #1a1a1a;
+    --text-dim: #7a7a7a;
+    --accent: #1a8a4a;
+    --accent-dim: rgba(26,138,74,0.1);
+    --red: #c44;
+    --key-border: #bbb;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ─── Header ─── */
+  header {
+    width: 100%;
+    max-width: 860px;
+    padding: 28px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+  header .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* ─── Controls ─── */
+  .controls {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--surface2);
+    background: var(--surface);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .btn.primary {
+    background: var(--accent);
+    color: #0f1117;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+  .btn.primary:hover { background: #6dd98f; border-color: #6dd98f; }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+
+  .wpm-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .wpm-group label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .wpm-group input {
+    width: 72px;
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+  .wpm-group input::-webkit-outer-spin-button,
+  .wpm-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .wpm-group input:focus { border-color: var(--accent); }
+
+  /* ─── Paste Area ─── */
+  .paste-area {
+    width: 100%;
+    max-width: 860px;
+    margin-top: 18px;
+    position: relative;
+  }
+  .paste-area textarea {
+    width: 100%;
+    height: 100px;
+    resize: none;
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .paste-area textarea:focus { border-color: var(--accent); }
+  .paste-area textarea::placeholder { color: var(--text-dim); }
+
+  /* ─── Reader Stage ─── */
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 860px;
+    margin-top: 10px;
+  }
+
+  .reader-box {
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    border-radius: 12px;
+    width: 100%;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #display-word {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    transition: opacity 0.05s;
+    text-align: center;
+    max-width: 95%;
+    white-space: nowrap;
+  }
+
+  /* ─── Progress ─── */
+  .progress-wrap {
+    width: 100%;
+    max-width: 860px;
+    margin-top: 16px;
+  }
+  .progress-bar-bg {
+    width: 100%;
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.15s linear;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .progress-label .time-est {
+    color: var(--accent);
+  }
+
+  /* ─── Status / Hints ─── */
+  .status {
+    width: 100%;
+    max-width: 860px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: center;
+    letter-spacing: 0.03em;
+    min-height: 18px;
+  }
+  .status .key {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--key-border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    margin: 0 2px;
+  }
+  .status.active { color: var(--accent); }
+  .status.paused { color: var(--red); }
+
+  /* ─── File indicator ─── */
+  .file-indicator {
+    width: 100%;
+    max-width: 860px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="dot"></div>
+  <h1>PRO SPEED READER</h1>
+  <button class="btn" id="theme-btn" style="margin-left:auto; padding:6px 12px; font-size:18px; border-radius:6px;">🌙</button>
+</header>
+
+<div class="controls">
+  <button class="btn" id="open-btn">📁 Open PDF</button>
+  <button class="btn primary" id="start-btn" disabled>▶ START</button>
+  <button class="btn" id="pause-btn" disabled>⏸ PAUSE</button>
+  <button class="btn" id="reset-btn" disabled>↺ RESTART</button>
+  <div class="wpm-group">
+    <label>WPM</label>
+    <input type="number" id="wpm-input" value="350" min="50" max="2000" />
+  </div>
+</div>
+
+<div class="paste-area">
+  <textarea id="paste-input" placeholder="Paste text here or open a PDF…"></textarea>
+</div>
+
+<div class="stage">
+  <div class="reader-box">
+    <div id="display-word">—</div>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <div class="progress-label">
+    <span id="progress-current">0</span>
+    <span class="time-est" id="time-est">—</span>
+    <span id="progress-total">0 words</span>
+  </div>
+</div>
+
+<div class="file-indicator" id="file-indicator"></div>
+<div class="status" id="status">
+  <span class="key">Space</span> pause &nbsp;
+  <span class="key">←</span><span class="key">→</span> skip
+</div>
+
+<!-- Hidden file input for PDF -->
+<input type="file" id="file-input" accept=".pdf" style="display:none" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function () {
+  // ─── State ───
+  let words = [];
+  let currentIndex = 0;
+  let running = false;
+  let timeoutId = null;
+  let currentFilePath = null; // store name for display
+
+  // ─── DOM refs ───
+  const openBtn      = document.getElementById('open-btn');
+  const startBtn     = document.getElementById('start-btn');
+  const pauseBtn     = document.getElementById('pause-btn');
+  const resetBtn     = document.getElementById('reset-btn');
+  const wpmInput     = document.getElementById('wpm-input');
+  const pasteInput   = document.getElementById('paste-input');
+  const fileInput    = document.getElementById('file-input');
+  const displayWord  = document.getElementById('display-word');
+  const progressFill = document.getElementById('progress-fill');
+  const progressCur  = document.getElementById('progress-current');
+  const progressTot  = document.getElementById('progress-total');
+  const timeEst      = document.getElementById('time-est');
+  const statusEl     = document.getElementById('status');
+  const fileIndicator= document.getElementById('file-indicator');
+  const themeBtn     = document.getElementById('theme-btn');
+
+  // ─── Theme Toggle ───
+  let isLight = false;
+  themeBtn.addEventListener('click', () => {
+    isLight = !isLight;
+    document.documentElement.classList.toggle('light', isLight);
+    themeBtn.textContent = isLight ? '🌙' : '☀️';
+  });
+
+  // ─── PDF.js worker ───
+  const pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ─── Open PDF ───
+  openBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    currentFilePath = file.name;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    pasteInput.value = text.trim();
+    loadWords();
+    setStatus(`Loaded: ${file.name}`, '');
+    fileIndicator.textContent = file.name;
+    fileInput.value = ''; // reset so re-selecting same file works
+  });
+
+  // ─── Paste listener ───
+  pasteInput.addEventListener('input', () => {
+    if (pasteInput.value.trim()) loadWords();
+  });
+
+  // Recalculate time estimate live when WPM changes
+  wpmInput.addEventListener('input', () => {
+    if (words.length > 0) updateProgress();
+  });
+
+  // ─── Load words from textarea ───
+  function loadWords() {
+    const text = pasteInput.value.trim();
+    if (!text) return;
+    words = text.split(/\s+/).filter(w => w.length > 0);
+    currentIndex = 0;
+    running = false;
+    clearTimeout(timeoutId);
+    updateProgress();
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    resetBtn.disabled = false;
+    displayWord.textContent = '—';
+  }
+
+  // ─── Controls ───
+  startBtn.addEventListener('click', () => {
+    if (words.length === 0) return;
+    if (currentIndex >= words.length) currentIndex = 0;
+    running = true;
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    setStatus('Reading…', 'active');
+    loop();
+  });
+
+  pauseBtn.addEventListener('click', togglePause);
+
+  resetBtn.addEventListener('click', () => {
+    stop();
+    currentIndex = 0;
+    displayWord.textContent = '—';
+    updateProgress();
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    setStatus('Reset. Press START.', '');
+  });
+
+  // ─── Keyboard ───
+  document.addEventListener('keydown', (e) => {
+    if (e.target === pasteInput || e.target === wpmInput) return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (words.length === 0) return;
+      togglePause();
+    }
+    if (e.code === 'ArrowLeft')  { e.preventDefault(); skip(-5); }
+    if (e.code === 'ArrowRight') { e.preventDefault(); skip(5);  }
+  });
+
+  function togglePause() {
+    if (words.length === 0) return;
+    if (running) {
+      stop();
+      setStatus('Paused', 'paused');
+      startBtn.disabled = true;
+      pauseBtn.textContent = '▶ RESUME';
+    } else {
+      running = true;
+      pauseBtn.textContent = '⏸ PAUSE';
+      setStatus('Reading…', 'active');
+      loop();
+    }
+  }
+
+  function skip(amount) {
+    if (words.length === 0) return;
+    currentIndex = Math.max(0, Math.min(words.length - 1, currentIndex + amount));
+    displayWord.textContent = words[currentIndex];
+    updateProgress();
+  }
+
+  function stop() {
+    running = false;
+    clearTimeout(timeoutId);
+    pauseBtn.disabled = true;
+    startBtn.disabled = false;
+    pauseBtn.textContent = '⏸ PAUSE';
+  }
+
+  // ─── Main Loop ───
+  function loop() {
+    if (!running || currentIndex >= words.length) {
+      if (currentIndex >= words.length) {
+        setStatus('Finished!', '');
+        stop();
+      }
+      return;
+    }
+
+    const word = words[currentIndex];
+    displayWord.textContent = word;
+    currentIndex++;
+    updateProgress();
+
+    const delay = getDynamicDelay(word);
+    timeoutId = setTimeout(loop, delay);
+  }
+
+  // ─── Dynamic Delay ───
+  // Rules:
+  //   Letters 1–5: no added delay (base WPM rate)
+  //   Letters 6–7: each letter over 5 adds +5% to the modifier
+  //   Letters 8+:  each letter over 5 adds +5% AND an additional +15% (so +20% per letter from 8 onward)
+  //   Punctuation [.,!?;] at end: +60% on top of everything
+  function getDynamicDelay(word) {
+    let wpm = parseInt(wpmInput.value, 10);
+    if (isNaN(wpm) || wpm < 1) wpm = 350;
+
+    const baseDelay = (60 / wpm) * 1000;
+    let modifier = 1.0;
+    const len = word.length;
+
+    if (len > 5) {
+      for (let i = 6; i <= len; i++) {
+        modifier += 0.05;          // +5% for every letter over 5
+        if (i >= 8) modifier += 0.15; // additional +15% once we hit letter 8+
+      }
+    }
+
+    if (/[.,!?;]/.test(word)) modifier += 0.6;
+
+    return Math.round(baseDelay * modifier);
+  }
+
+  // ─── Time Estimation ───
+  // Sums the real delay of every remaining word so the estimate accounts
+  // for long words and punctuation pauses, not just flat WPM.
+  function calcRemainingMs(fromIndex) {
+    let total = 0;
+    for (let i = fromIndex; i < words.length; i++) {
+      total += getDynamicDelay(words[i]);
+    }
+    return total;
+  }
+
+  function formatTime(ms) {
+    if (ms < 1000) return '< 1s';
+    const totalSec = Math.round(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  // ─── UI Updates ───
+  function updateProgress() {
+    const pct = words.length ? (currentIndex / words.length) * 100 : 0;
+    progressFill.style.width = pct + '%';
+    progressCur.textContent = currentIndex;
+    progressTot.textContent = words.length + ' words';
+
+    if (words.length === 0) {
+      timeEst.textContent = '—';
+    } else if (currentIndex >= words.length) {
+      timeEst.textContent = 'Done';
+    } else {
+      const remainMs = calcRemainingMs(currentIndex);
+      timeEst.textContent = formatTime(remainMs) + ' left';
+    }
+  }
+
+  function setStatus(msg, cls) {
+    statusEl.className = 'status' + (cls ? ' ' + cls : '');
+    statusEl.textContent = msg;
+  }
+})();
+</script>
+</body>
+</html>
